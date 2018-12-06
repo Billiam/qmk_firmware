@@ -22,7 +22,7 @@
 #include "analog.h"
 
 
-static uint8_t aref = (1<<REFS0); // default to AREF = Vcc
+static uint8_t aref = ADC_REF_POWER; // default to AREF = Vcc
 
 
 void analogReference(uint8_t mode)
@@ -54,7 +54,7 @@ int16_t adc_read(uint8_t mux)
 #if defined(__AVR_AT90USB162__)
 	return 0;
 #else
-	uint8_t low;
+	uint16_t res = 0;
 
 	ADCSRA = (1<<ADEN) | ADC_PRESCALER;		// enable ADC
   
@@ -62,10 +62,13 @@ int16_t adc_read(uint8_t mux)
 	ADCSRB = (1<<ADHSM) | (mux & 0x20);		// high speed mode
 #endif
 	ADMUX = aref | (mux & 0x1F);			// configure mux input
-	ADCSRA = (1<<ADEN) | ADC_PRESCALER | (1<<ADSC);	// start the conversion
+	ADCSRA |= (1<<ADSC);	// start the conversion
 	while (ADCSRA & (1<<ADSC)) ;			// wait for result
-	low = ADCL;					// must read LSB first
-	return (ADCH << 8) | low;			// must read MSB only once!
+	res = ADCL;					// must read LSB first
+  res |= (ADCH << 8) | res;
+  
+  ADCSRA &= ~(1<<ADEN);//turn off the ADC
+  return res;
 #endif
 }
 
